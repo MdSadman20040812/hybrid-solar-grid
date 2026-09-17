@@ -1,0 +1,63 @@
+{
+  "name": "hybrid-mini-grid-control",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Secure local control and telemetry dashboard for a hybrid solar, battery, and grid mini-grid.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "tsx watch server/src/index.ts",
+    "dev:client": "vite --config client/vite.config.ts --host 0.0.0.0",
+    "dev:simulator": "tsx simulator/src/index.ts",
+    "build": "npm run build:server && npm run build:simulator && npm run build:client",
+    "build:server": "tsc -p server/tsconfig.json",
+    "build:simulator": "tsc -p simulator/tsconfig.json",
+    "build:client": "vite build --config client/vite.config.ts",
+    "start": "node dist/server/server/src/index.js",
+    "simulator": "node dist/simulator/simulator/src/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p simulator/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "demo": "node scripts/demo.mjs"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "three": "^0.185.1",
+    "ws": "^8.18.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.10.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/supertest": "^6.0.3",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "latest",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "jsdom": "^27.4.0",
+    "supertest": "^7.1.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.52.0",
+    "vite": "latest",
+    "vitest": "^4.0.16"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

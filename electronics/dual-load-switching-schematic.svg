@@ -1,0 +1,302 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" font-family="'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <style>
+      .title { font-size: 18px; font-weight: 700; fill: #1a1a2e; }
+      .subtitle { font-size: 12px; fill: #555; }
+      .label { font-size: 11px; fill: #222; font-weight: 600; }
+      .pin { font-size: 9px; fill: #444; font-family: monospace; }
+      .wire { stroke: #333; stroke-width: 1.5; fill: none; }
+      .wire-hot { stroke: #c0392b; stroke-width: 2; fill: none; }
+      .wire-gnd { stroke: #2c3e50; stroke-width: 2; fill: none; }
+      .wire-gate { stroke: #2980b9; stroke-width: 1.5; fill: none; }
+      .box { stroke: #333; stroke-width: 1.5; fill: #f8f9fa; }
+      .box-esp { stroke: #2c3e50; stroke-width: 2; fill: #ecf0f1; }
+      .box-mosfet { stroke: #8e44ad; stroke-width: 2; fill: #f4ecf7; }
+      .box-load { stroke: #c0392b; stroke-width: 2; fill: #fdedec; }
+      .resistor { stroke: #333; stroke-width: 1.5; fill: #fdebd0; }
+      .junction { fill: #333; }
+      .led-on { fill: #2ecc71; }
+      .text-small { font-size: 9px; fill: #666; }
+      .arrow { marker-end: url(#arrowhead); }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#333"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="600" y="30" text-anchor="middle" class="title">Grid Fail Detector — ESP32 Dual Load Switching</text>
+  <text x="600" y="50" text-anchor="middle" class="subtitle">2× IRLZ44N logic-level N-MOSFET · low-side switch · 300Ω gate drive</text>
+
+  <!-- ═══════════════════════════════════════════════════════ ESP32 MODULE ═══════════════════════════════════════════════════════ -->
+  <rect x="40" y="80" width="260" height="520" rx="8" class="box-esp"/>
+  <text x="170" y="105" text-anchor="middle" class="label">ESP32 Dev Module</text>
+  <text x="170" y="120" text-anchor="middle" class="text-small">WiFi · ADC · GPIO</text>
+
+  <!-- GPIO labels -->
+  <text x="55" y="155" class="pin">GPIO 13</text>
+  <text x="55" y="195" class="pin">GPIO 14</text>
+  <text x="55" y="235" class="pin">GPIO 16</text>
+  <text x="55" y="275" class="pin">GPIO 17</text>
+  <text x="55" y="315" class="pin">GPIO 34</text>
+  <text x="55" y="355" class="pin">GPIO 35</text>
+  <text x="55" y="395" class="pin">GPIO 2</text>
+  <text x="55" y="435" class="pin">3V3</text>
+  <text x="55" y="475" class="pin">GND</text>
+  <text x="55" y="515" class="pin">VIN</text>
+  <text x="55" y="555" class="pin">EN</text>
+
+  <!-- Right-side pins -->
+  <text x="285" y="155" text-anchor="end" class="pin">USB</text>
+
+  <!-- Pin dots on left -->
+  <circle cx="50" cy="150" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="190" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="230" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="270" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="310" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="350" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="390" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="430" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="470" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="510" r="4" fill="#2c3e50"/>
+  <circle cx="50" cy="550" r="4" fill="#2c3e50"/>
+
+  <!-- Status LED indicator -->
+  <circle cx="170" cy="395" r="6" fill="#27ae60" opacity="0.8"/>
+  <text x="195" y="399" class="text-small">STATUS LED</text>
+
+  <!-- ═══════════════════════════════════════════════════════ CHANNEL 0 — CRITICAL ═══════════════════════════════════════════════════════ -->
+  <rect x="350" y="80" width="220" height="180" rx="6" class="box-mosfet"/>
+  <text x="460" y="100" text-anchor="middle" class="label">Q1 — IRLZ44N</text>
+  <text x="460" y="115" text-anchor="middle" class="text-small">CHANNEL 0 · CRITICAL LOAD</text>
+
+  <!-- MOSFET symbol -->
+  <!-- Gate -->
+  <line x1="390" y1="155" x2="430" y2="155" class="wire-gate"/>
+  <line x1="430" y1="135" x2="430" y2="175" stroke="#8e44ad" stroke-width="2.5"/>
+  <!-- Channel -->
+  <line x1="438" y1="135" x2="438" y2="150" stroke="#8e44ad" stroke-width="2"/>
+  <line x1="438" y1="160" x2="438" y2="175" stroke="#8e44ad" stroke-width="2"/>
+  <!-- Arrow -->
+  <polygon points="438,158 445,163 438,168" fill="#8e44ad"/>
+  <!-- Drain -->
+  <line x1="450" y1="135" x2="480" y2="135" class="wire-hot"/>
+  <!-- Source -->
+  <line x1="450" y1="175" x2="480" y2="175" class="wire-gnd"/>
+  <!-- Labels -->
+  <text x="435" y="130" text-anchor="middle" class="text-small" fill="#8e44ad">G</text>
+  <text x="485" y="132" class="text-small" fill="#c0392b">D</text>
+  <text x="485" y="183" class="text-small" fill="#2c3e50">S</text>
+
+  <!-- 300Ω gate resistor -->
+  <rect x="370" y="200" width="50" height="18" rx="3" class="resistor"/>
+  <text x="395" y="213" text-anchor="middle" class="text-small" fill="#333">300Ω</text>
+
+  <!-- 10k pulldown -->
+  <rect x="490" y="200" width="50" height="18" rx="3" class="resistor"/>
+  <text x="515" y="213" text-anchor="middle" class="text-small" fill="#333">10kΩ</text>
+
+  <!-- ═══════════════════════════════════════════════════════ CHANNEL 1 — NON-CRITICAL ═══════════════════════════════════════════════════════ -->
+  <rect x="350" y="310" width="220" height="180" rx="6" class="box-mosfet"/>
+  <text x="460" y="330" text-anchor="middle" class="label">Q2 — IRLZ44N</text>
+  <text x="460" y="345" text-anchor="middle" class="text-small">CHANNEL 1 · NON-CRITICAL LOAD</text>
+
+  <!-- MOSFET symbol -->
+  <line x1="390" y1="385" x2="430" y2="385" class="wire-gate"/>
+  <line x1="430" y1="365" x2="430" y2="405" stroke="#8e44ad" stroke-width="2.5"/>
+  <line x1="438" y1="365" x2="438" y2="380" stroke="#8e44ad" stroke-width="2"/>
+  <line x1="438" y1="390" x2="438" y2="405" stroke="#8e44ad" stroke-width="2"/>
+  <polygon points="438,388 445,393 438,398" fill="#8e44ad"/>
+  <line x1="450" y1="365" x2="480" y2="365" class="wire-hot"/>
+  <line x1="450" y1="405" x2="480" y2="405" class="wire-gnd"/>
+  <text x="435" y="360" text-anchor="middle" class="text-small" fill="#8e44ad">G</text>
+  <text x="485" y="362" class="text-small" fill="#c0392b">D</text>
+  <text x="485" y="413" class="text-small" fill="#2c3e50">S</text>
+
+  <!-- 300Ω gate resistor -->
+  <rect x="370" y="430" width="50" height="18" rx="3" class="resistor"/>
+  <text x="395" y="443" text-anchor="middle" class="text-small" fill="#333">300Ω</text>
+
+  <!-- 10k pulldown -->
+  <rect x="490" y="430" width="50" height="18" rx="3" class="resistor"/>
+  <text x="515" y="443" text-anchor="middle" class="text-small" fill="#333">10kΩ</text>
+
+  <!-- ═══════════════════════════════════════════════════════ LOADS ═══════════════════════════════════════════════════════ -->
+  <!-- Critical Load -->
+  <rect x="640" y="100" width="160" height="120" rx="6" class="box-load"/>
+  <text x="720" y="122" text-anchor="middle" class="label">⚡ CRITICAL LOAD</text>
+  <text x="720" y="138" text-anchor="middle" class="text-small">Hospital / Emergency</text>
+  <text x="720" y="155" text-anchor="middle" text-size="10" fill="#c0392b">NOT shed during grid fail</text>
+  <!-- Lamp icon -->
+  <circle cx="720" cy="185" r="18" fill="none" stroke="#c0392b" stroke-width="1.5"/>
+  <path d="M710 185 A 14 14 0 0 1 730 185" fill="none" stroke="#c0392b" stroke-width="1.5"/>
+  <line x1="720" y1="167" x2="720" y2="173" stroke="#c0392b" stroke-width="1.5"/>
+  <line x1="720" y1="197" x2="720" y2="203" stroke="#c0392b" stroke-width="1.5"/>
+
+  <!-- Non-Critical Load -->
+  <rect x="640" y="330" width="160" height="120" rx="6" class="box-load"/>
+  <text x="720" y="352" text-anchor="middle" class="label">🏠 NON-CRITICAL LOAD</text>
+  <text x="720" y="368" text-anchor="middle" class="text-small">Houses / Offices / Industry</text>
+  <text x="720" y="385" text-anchor="middle" class="text-small" fill="#c0392b">SHED during grid fail</text>
+  <!-- House icon -->
+  <rect x="700" y="400" width="40" height="35" fill="none" stroke="#c0392b" stroke-width="1.5"/>
+  <polygon points="720,393 697,413 743,413" fill="none" stroke="#c0392b" stroke-width="1.5"/>
+  <rect x="714" y="420" width="12" height="15" fill="none" stroke="#c0392b" stroke-width="1.5"/>
+
+  <!-- ═══════════════════════════════════════════════════════ POWER RAIL ═══════════════════════════════════════════════════════ -->
+  <line x1="880" y1="80" x2="880" y2="600" class="wire-hot" stroke-width="3"/>
+  <text x="890" y="95" class="label" fill="#c0392b">+12V DC BUS</text>
+  <text x="890" y="110" class="text-small">Battery / PV Array</text>
+
+  <line x1="850" y1="80" x2="850" y2="600" class="wire-gnd" stroke-width="3"/>
+  <text x="820" y="95" text-anchor="end" class="label" fill="#2c3e50">GND BUS</text>
+  <text x="820" y="110" text-anchor="end" class="text-small">Common Ground</text>
+
+  <!-- Load connections to bus -->
+  <!-- Critical: Drain → Load → +12V -->
+  <line x1="480" y1="135" x2="640" y2="135" class="wire-hot"/>
+  <line x1="800" y1="135" x2="880" y2="135" class="wire-hot"/>
+  <line x1="800" y1="135" x2="800" y2="80" class="wire-hot"/>
+
+  <!-- Non-Critical: Drain → Load → +12V -->
+  <line x1="480" y1="365" x2="640" y2="365" class="wire-hot"/>
+  <line x1="800" y1="365" x2="880" y2="365" class="wire-hot"/>
+
+  <!-- Source → GND bus -->
+  <line x1="480" y1="175" x2="620" y2="175" class="wire-gnd"/>
+  <line x1="480" y1="405" x2="620" y2="405" class="wire-gnd"/>
+  <line x1="620" y1="175" x2="620" y2="405" class="wire-gnd"/>
+  <line x1="620" y1="290" x2="850" y2="290" class="wire-gnd"/>
+
+  <!-- ═══════════════════════════════════════════════════════ GATE WIRING ═══════════════════════════════════════════════════════ -->
+  <!-- Channel 0: GPIO13 → R1 (300Ω) → Gate -->
+  <line x1="50" y1="150" x2="370" y2="150" class="wire-gate"/>
+  <line x1="370" y1="150" x2="370" y2="200" class="wire-gate"/>
+  <line x1="420" y1="209" x2="430" y2="209" class="wire-gate"/>
+  <line x1="430" y1="209" x2="430" y2="185" class="wire-gate"/>
+  <!-- Gate junction dot -->
+  <circle cx="430" cy="209" r="3" class="junction"/>
+
+  <!-- Channel 1: GPIO14 → R2 (300Ω) → Gate -->
+  <line x1="50" y1="190" x2="350" y2="190" class="wire-gate"/>
+  <line x1="350" y1="190" x2="350" y2="430" class="wire-gate"/>
+  <line x1="350" y1="430" x2="370" y2="430" class="wire-gate"/>
+  <line x1="420" y1="439" x2="430" y2="439" class="wire-gate"/>
+  <line x1="430" y1="439" x2="430" y2="415" class="wire-gate"/>
+  <circle cx="430" cy="439" r="3" class="junction"/>
+
+  <!-- Pulldown resistors to GND -->
+  <!-- Q1 pulldown -->
+  <line x1="540" y1="209" x2="560" y2="209" class="wire-gnd"/>
+  <line x1="560" y1="209" x2="560" y2="290" class="wire-gnd"/>
+  <line x1="560" y1="290" x2="620" y2="290" class="wire-gnd"/>
+  <circle cx="490" cy="209" r="3" class="junction"/>
+
+  <!-- Q2 pulldown -->
+  <line x1="540" y1="439" x2="560" y2="439" class="wire-gnd"/>
+  <line x1="560" y1="439" x2="560" y2="290" class="wire-gnd"/>
+  <circle cx="490" cy="439" r="3" class="junction"/>
+
+  <!-- ═══════════════════════════════════════════════════════ PHYSICAL SWITCHES ═══════════════════════════════════════════════════════ -->
+  <!-- Switch 0 (Critical) -->
+  <rect x="350" y="530" width="180" height="80" rx="6" class="box"/>
+  <text x="440" y="550" text-anchor="middle" class="label">MANUAL SWITCH 0</text>
+  <text x="440" y="565" text-anchor="middle" class="text-small">Critical Load Override</text>
+  <line x1="50" y1="230" x2="280" y2="230" class="wire"/>
+  <line x1="280" y1="230" x2="280" y2="570" class="wire"/>
+  <line x1="280" y1="570" x2="350" y2="570" class="wire"/>
+  <!-- Switch symbol -->
+  <circle cx="410" cy="580" r="4" fill="#333"/>
+  <circle cx="470" cy="580" r="4" fill="#333"/>
+  <line x1="410" y1="580" x2="450" y2="568" stroke="#333" stroke-width="1.5"/>
+  <line x1="470" y1="580" x2="470" y2="600" class="wire-gnd"/>
+  <line x1="410" y1="580" x2="410" y2="600" class="wire-gnd"/>
+
+  <!-- Switch 1 (Non-Critical) -->
+  <rect x="570" y="530" width="180" height="80" rx="6" class="box"/>
+  <text x="660" y="550" text-anchor="middle" class="label">MANUAL SWITCH 1</text>
+  <text x="660" y="565" text-anchor="middle" class="text-small">Non-Critical Load Override</text>
+  <line x1="50" y1="270" x2="260" y2="270" class="wire"/>
+  <line x1="260" y1="270" x2="260" y2="560" class="wire"/>
+  <line x1="260" y1="560" x2="570" y2="560" class="wire"/>
+  <!-- Switch symbol -->
+  <circle cx="630" cy="580" r="4" fill="#333"/>
+  <circle cx="690" cy="580" r="4" fill="#333"/>
+  <line x1="630" y1="580" x2="670" y2="568" stroke="#333" stroke-width="1.5"/>
+  <line x1="690" y1="580" x2="690" y2="600" class="wire-gnd"/>
+  <line x1="630" y1="580" x2="630" y2="600" class="wire-gnd"/>
+
+  <!-- ═══════════════════════════════════════════════════════ SENSORS ═══════════════════════════════════════════════════════ -->
+  <!-- Voltage divider -->
+  <rect x="850" y="620" width="200" height="100" rx="6" class="box"/>
+  <text x="950" y="640" text-anchor="middle" class="label">BUS VOLTAGE SENSOR</text>
+  <text x="950" y="655" text-anchor="middle" class="text-small">Divider: 40kΩ / 10kΩ</text>
+
+  <!-- R_top -->
+  <rect x="900" y="665" width="40" height="14" rx="2" class="resistor"/>
+  <text x="920" y="675" text-anchor="middle" class="text-small" fill="#333">40kΩ</text>
+
+  <!-- R_bottom -->
+  <rect x="900" y="690" width="40" height="14" rx="2" class="resistor"/>
+  <text x="920" y="700" text-anchor="middle" class="text-small" fill="#333">10kΩ</text>
+
+  <!-- Connections -->
+  <line x1="920" y1="620" x2="920" y2="665" class="wire-hot"/>
+  <line x1="920" y1="679" x2="920" y2="690" class="wire"/>
+  <line x1="920" y1="704" x2="920" y2="720" class="wire-gnd"/>
+  <line x1="50" y1="310" x2="100" y2="310" class="wire"/>
+  <line x1="100" y1="310" x2="100" y2="682" class="wire"/>
+  <line x1="100" y1="682" x2="900" y2="682" class="wire"/>
+  <circle cx="920" cy="682" r="3" class="junction"/>
+
+  <!-- ACS712 Current Sensor -->
+  <rect x="1070" y="620" width="120" height="100" rx="6" class="box"/>
+  <text x="1130" y="642" text-anchor="middle" class="label">ACS712</text>
+  <text x="1130" y="658" text-anchor="middle" class="text-small">30A Current</text>
+  <text x="1130" y="674" text-anchor="middle" class="text-small">Vout → GPIO 35</text>
+  <line x1="50" y1="350" x2="80" y2="350" class="wire"/>
+  <line x1="80" y1="350" x2="80" y2="680" class="wire"/>
+  <line x1="80" y1="680" x2="1070" y2="680" class="wire"/>
+
+  <!-- ═══════════════════════════════════════════════════════ ESP32 GND ═══════════════════════════════════════════════════════ -->
+  <line x1="50" y1="470" x2="50" y2="620" class="wire-gnd"/>
+  <line x1="50" y1="620" x2="850" y2="620" class="wire-gnd"/>
+  <line x1="850" y1="620" x2="850" y2="570" class="wire-gnd"/>
+  <!-- Connect sensor GNDs -->
+  <line x1="920" y1="720" x2="850" y2="720" class="wire-gnd"/>
+  <line x1="850" y1="720" x2="850" y2="620" class="wire-gnd"/>
+  <line x1="1130" y1="720" x2="1130" y2="720" class="wire-gnd"/>
+  <line x1="1130" y1="720" x2="920" y2="720" class="wire-gnd"/>
+
+  <!-- ═══════════════════════════════════════════════════════ LEGEND ═══════════════════════════════════════════════════════ -->
+  <rect x="640" y="530" width="400" height="80" rx="6" fill="white" stroke="#ccc" stroke-width="1"/>
+  <text x="660" y="555" class="label">LEGEND</text>
+  <line x1="660" y1="570" x2="690" y2="570" class="wire-hot"/>
+  <text x="700" y="574" class="text-small">+12V / Load path</text>
+  <line x1="660" y1="590" x2="690" y2="590" class="wire-gate"/>
+  <text x="700" y="594" class="text-small">Gate drive (3.3V logic)</text>
+  <line x1="660" y1="605" x2="690" y2="605" class="wire-gnd"/>
+  <text x="700" y="609" class="text-small">Ground</text>
+
+  <!-- WiFi cloud icon -->
+  <text x="900" y="555" class="label">📡 WiFi</text>
+  <text x="900" y="575" class="text-small">Remote switch control</text>
+  <text x="900" y="595" class="text-small">via HTTP / Dashboard</text>
+
+  <!-- ═══════════════════════════════════════════════════════ BOM ═══════════════════════════════════════════════════════ -->
+  <rect x="640" y="640" width="400" height="140" rx="6" fill="white" stroke="#ccc" stroke-width="1"/>
+  <text x="660" y="660" class="label">BILL OF MATERIALS</text>
+  <text x="660" y="680" class="text-small">U1: ESP32 Dev Module (WiFi)</text>
+  <text x="660" y="695" class="text-small">Q1, Q2: IRLZ44N (logic-level N-MOSFET, Vgs(th) 1-2V)</text>
+  <text x="660" y="710" class="text-small">R1, R2: 300Ω ¼W (gate current limit)</text>
+  <text x="660" y="725" class="text-small">R3, R4: 10kΩ ¼W (gate pulldown — OFF at boot)</text>
+  <text x="660" y="740" class="text-small">R5: 40kΩ ¼V (voltage divider high side)</text>
+  <text x="660" y="755" class="text-small">R6: 10kΩ ¼W (voltage divider low side)</text>
+  <text x="660" y="770" class="text-small">CS1: ACS712-30A (hall-effect current sensor)</text>
+  <text x="860" y="680" class="text-small">SW1, SW2: SPST tactile switch</text>
+  <text x="860" y="695" class="text-small">D1: 3mm LED (status, GPIO2)</text>
+  <text x="860" y="710" class="text-small">Power: 12V DC bus / 5V USB for ESP32</text>
+  <text x="860" y="725" text-size="9" fill="#c0392b">Max load per channel: 10A @ 12V (IRLZ44N Rds(on) = 22mΩ)</text>
+
+</svg>

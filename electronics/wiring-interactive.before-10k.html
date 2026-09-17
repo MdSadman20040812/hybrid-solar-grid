@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grid Fail Detector — Interactive Wiring Diagram</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow-x: hidden;
+  }
+  h1 {
+    text-align: center;
+    padding: 18px 0 4px;
+    font-size: 22px;
+    color: #fff;
+    letter-spacing: 1px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 10px;
+  }
+  .container {
+    display: flex;
+    gap: 16px;
+    padding: 10px 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .panel {
+    background: #12121f;
+    border: 1px solid #2a2a40;
+    border-radius: 12px;
+    padding: 16px;
+    min-width: 260px;
+  }
+  .panel h2 {
+    font-size: 14px;
+    color: #8888cc;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ── Main SVG Canvas ── */
+  .svg-wrap {
+    flex: 1 1 900px;
+    max-width: 950px;
+    background: #0e0e1c;
+    border-radius: 12px;
+    border: 1px solid #2a2a40;
+    position: relative;
+    overflow: hidden;
+  }
+  svg { display: block; }
+
+  /* ── Animated wire glow ── */
+  @keyframes dash {
+    to { stroke-dashoffset: -20; }
+  }
+  .wire-active {
+    stroke-dasharray: 8 4;
+    animation: dash 0.6s linear infinite;
+  }
+  .wire-off { opacity: 0.25; }
+
+  /* ── Pulsing glow for loads ── */
+  @keyframes glow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .load-glow {
+    animation: glow 1.5s ease-in-out infinite;
+  }
+
+  /* ── Bluetooth pulse ── */
+  @keyframes btpulse {
+    0% { r: 4; opacity: 1; }
+    100% { r: 20; opacity: 0; }
+  }
+  .bt-pulse {
+    animation: btpulse 1.5s ease-out infinite;
+  }
+
+  /* ── Control Panel ── */
+  .ctrl-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 14px;
+    margin: 6px 0;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #1a1a2e;
+    color: #ddd;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+  }
+  .ctrl-btn:hover { background: #252540; border-color: #555; }
+  .ctrl-btn:active { transform: scale(0.97); }
+  .ctrl-btn.on { background: #1a3a1a; border-color: #2ecc71; color: #2ecc71; }
+  .ctrl-btn.off { background: #3a1a1a; border-color: #e74c3c; color: #e74c3c; }
+  .ctrl-btn.warn { background: #3a2a1a; border-color: #f39c12; color: #f39c12; }
+  .ctrl-btn.critical { background: #3a1a1a; border-color: #ff4444; color: #ff4444; }
+
+  /* ── Status indicators ── */
+  .status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid #1a1a2a;
+    font-size: 12px;
+  }
+  .status-row:last-child { border-bottom: none; }
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .dot-green { background: #2ecc71; box-shadow: 0 0 6px #2ecc71; }
+  .dot-red { background: #e74c3c; box-shadow: 0 0 6px #e74c3c; }
+  .dot-yellow { background: #f39c12; box-shadow: 0 0 6px #f39c12; }
+  .dot-blue { background: #3498db; box-shadow: 0 0 6px #3498db; }
+
+  /* ── Log ── */
+  .log {
+    background: #0a0a14;
+    border: 1px solid #222;
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #666;
+  }
+  .log .cmd { color: #3498db; }
+  .log .evt { color: #f39c12; }
+  .log .ok { color: #2ecc71; }
+
+  /* ── Tooltip ── */
+  .tooltip {
+    position: absolute;
+    background: #1a1a2e;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #ccc;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 200px;
+    z-index: 10;
+  }
+  .tooltip.show { opacity: 1; }
+
+  /* ── Component highlight on hover ── */
+  .comp-hover:hover { filter: brightness(1.3); cursor: pointer; }
+</style>
+</head>
+<body>
+
+<h1>⚡ Grid Fail Detector — Interactive Wiring</h1>
+<p class="subtitle">Arduino Uno · HC-05 Bluetooth · 2× IRLZ44N · Auto Grid Fail Detection</p>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════ MAIN SVG ═══════════════════════════════════════════════════ -->
+<div class="svg-wrap">
+  <svg id="mainSvg" viewBox="0 0 950 620" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="glow-green">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glow-red">
+        <feGaussianBlur stdDeviation="4" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <filter id="glow-blue">
+        <feGaussianBlur stdDeviation="2" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <linearGradient id="grad-pcb" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1a3d1a"/>
+        <stop offset="100%" stop-color="#0f2a0f"/>
+      </linearGradient>
+      <linearGradient id="grad-hc05" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1a1a3d"/>
+        <stop offset="100%" stop-color="#0f0f2a"/>
+      </linearGradient>
+      <linearGradient id="grad-mosfet" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2a1a2a"/>
+        <stop offset="100%" stop-color="#1a0f1a"/>
+      </linearGradient>
+    </defs>
+
+    <!-- ── Background grid ── -->
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#151525" stroke-width="0.5"/>
+    </pattern>
+    <rect width="950" height="620" fill="url(#grid)"/>
+
+    <!-- ════════════ POWER RAILS ════════════ -->
+    <line x1="870" y1="30" x2="870" y2="590" stroke="#e74c3c" stroke-width="3" opacity="0.6"/>
+    <text x="880" y="50" fill="#e74c3c" font-size="11" font-weight="600">+12V BUS</text>
+    <text x="880" y="65" fill="#e74c3c" font-size="9" opacity="0.7">Battery / PV</text>
+
+    <line x1="840" y1="30" x2="840" y2="590" stroke="#2c3e50" stroke-width="3" opacity="0.6"/>
+    <text x="810" y="50" fill="#2c3e50" font-size="11" font-weight="600" text-anchor="end">GND BUS</text>
+    <text x="810" y="65" fill="#2c3e50" font-size="9" text-anchor="end" opacity="0.7">Common</text>
+
+    <!-- ════════════ ARDUINO UNO ════════════ -->
+    <g id="arduino" class="comp-hover">
+      <rect x="20" y="100" width="180" height="320" rx="8" fill="url(#grad-pcb)" stroke="#2ecc71" stroke-width="2"/>
+      <!-- PCB traces -->
+      <rect x="30" y="110" width="160" height="20" rx="3" fill="#0a1f0a" opacity="0.5"/>
+      <rect x="30" y="135" width="160" height="20" rx="3" fill="#0a1f0a" opacity="0.5"/>
+      <rect x="30" y="380" width="160" height="20" rx="3" fill="#0a1f0a" opacity="0.5"/>
+      <!-- Header -->
+      <text x="110" y="155" text-anchor="middle" fill="#2ecc71" font-size="13" font-weight="700">Arduino Uno</text>
+      <text x="110" y="170" text-anchor="middle" fill="#1a7a3a" font-size="9">ATmega328P · 5V</text>
+      <!-- USB connector -->
+      <rect x="70" y="100" width="40" height="12" rx="2" fill="#888" stroke="#666"/>
+      <text x="90" y="109" text-anchor="middle" fill="#333" font-size="7">USB</text>
+      <!-- IC chip -->
+      <rect x="70" y="200" width="60" height="40" rx="2" fill="#111" stroke="#444"/>
+      <text x="100" y="224" text-anchor="middle" fill="#666" font-size="8">328P</text>
+      <!-- Crystal -->
+      <rect x="55" y="250" width="14" height="8" rx="2" fill="#333" stroke="#555"/>
+
+      <!-- Digital pins -->
+      <g id="uno-pins">
+        <rect x="35" y="180" width="8" height="14" rx="1" fill="#2c3e50"/><text x="28" y="190" text-anchor="end" fill="#7f8c8d" font-size="8">0(RX)</text>
+        <rect x="35" y="200" width="8" height="14" rx="1" fill="#2c3e50"/><text x="28" y="210" text-anchor="end" fill="#7f8c8d" font-size="8">1(TX)</text>
+        <rect x="35" y="220" width="8" height="14" rx="1" fill="#2c3e50"/><text x="28" y="230" text-anchor="end" fill="#7f8c8d" font-size="8">2</text>
+        <rect x="35" y="240" width="8" height="14" rx="1" fill="#2c3e50"/><text x="28" y="250" text-anchor="end" fill="#7f8c8d" font-size="8">3</text>
+        <rect x="35" y="260" width="8" height="14" rx="1" fill="#2ecc71"/><text x="28" y="270" text-anchor="end" fill="#7f8c8d" font-size="8">4(LED)</text>
+        <rect x="35" y="280" width="8" height="14" rx="1" fill="#3498db"/><text x="28" y="290" text-anchor="end" fill="#3498db" font-size="8" font-weight="600">5(Q1)</text>
+        <rect x="35" y="300" width="8" height="14" rx="1" fill="#3498db"/><text x="28" y="310" text-anchor="end" fill="#3498db" font-size="8" font-weight="600">6(Q2)</text>
+        <rect x="35" y="320" width="8" height="14" rx="1" fill="#f39c12"/><text x="28" y="330" text-anchor="end" fill="#f39c12" font-size="8" font-weight="600">7(SW1)</text>
+        <rect x="35" y="340" width="8" height="14" rx="1" fill="#f39c12"/><text x="28" y="350" text-anchor="end" fill="#f39c12" font-size="8" font-weight="600">8(SW2)</text>
+        <!-- Analog pins -->
+        <rect x="35" y="370" width="8" height="14" rx="1" fill="#1abc9c"/><text x="28" y="380" text-anchor="end" fill="#1abc9c" font-size="8">A0(V)</text>
+        <rect x="35" y="390" width="8" height="14" rx="1" fill="#1abc9c"/><text x="28" y="400" text-anchor="end" fill="#1abc9c" font-size="8">A1(I)</text>
+        <!-- 5V / GND -->
+        <rect x="160" y="190" width="8" height="14" rx="1" fill="#e74c3c"/><text x="175" y="200" fill="#e74c3c" font-size="8">5V</text>
+        <rect x="160" y="210" width="8" height="14" rx="1" fill="#2c3e50"/><text x="175" y="220" fill="#7f8c8d" font-size="8">GND</text>
+      </g>
+
+      <!-- Onboard LED indicator -->
+      <circle id="onboardLed" cx="160" cy="395" r="5" fill="#1a1a1a" stroke="#333"/>
+      <text x="155" y="412" text-anchor="middle" fill="#666" font-size="7">L</text>
+    </g>
+
+    <!-- ════════════ HC-05 BLUETOOTH ════════════ -->
+    <g id="hc05" class="comp-hover">
+      <rect x="240" y="100" width="140" height="110" rx="8" fill="url(#grad-hc05)" stroke="#8e44ad" stroke-width="2"/>
+      <text x="310" y="125" text-anchor="middle" fill="#9b59b6" font-size="12" font-weight="700">HC-05</text>
+      <text x="310" y="140" text-anchor="middle" fill="#6a3d8a" font-size="9">Bluetooth</text>
+      <!-- LED indicator -->
+      <circle id="btLed" cx="310" cy="160" r="6" fill="#333"/>
+      <!-- BT pulses -->
+      <circle id="btPulse1" class="bt-pulse" cx="340" cy="120" r="4" fill="none" stroke="#9b59b6" stroke-width="1.5" opacity="0"/>
+      <circle id="btPulse2" class="bt-pulse" cx="340" cy="120" r="4" fill="none" stroke="#9b59b6" stroke-width="1.5" opacity="0" style="animation-delay:0.5s"/>
+      <circle id="btPulse3" class="bt-pulse" cx="340" cy="120" r="4" fill="none" stroke="#9b59b6" stroke-width="1.5" opacity="0" style="animation-delay:1s"/>
+      <!-- Pin labels -->
+      <text x="255" y="185" fill="#7f8c8d" font-size="8">VCC</text>
+      <text x="255" y="197" fill="#7f8c8d" font-size="8">GND</text>
+      <text x="310" y="185" fill="#9b59b6" font-size="8">TXD</text>
+      <text x="310" y="197" fill="#9b59b6" font-size="8">RXD</text>
+      <!-- Pin dots -->
+      <circle cx="252" cy="183" r="3" fill="#e74c3c"/>
+      <circle cx="252" cy="195" r="3" fill="#2c3e50"/>
+      <circle cx="307" cy="183" r="3" fill="#9b59b6"/>
+      <circle cx="307" cy="195" r="3" fill="#9b59b6"/>
+    </g>
+
+    <!-- ════════════ PC (Bluetooth receiver) ════════════ -->
+    <g id="pc">
+      <rect x="500" y="30" width="160" height="100" rx="6" fill="#1a1a2a" stroke="#3498db" stroke-width="1.5"/>
+      <text x="580" y="55" text-anchor="middle" fill="#3498db" font-size="12" font-weight="600">💻 Your PC</text>
+      <text x="580" y="72" text-anchor="middle" fill="#2980b9" font-size="9">Bluetooth COM Port</text>
+      <rect x="530" y="85" width="100" height="20" rx="4" fill="#0f0f1f" stroke="#2c3e50"/>
+      <text x="580" y="99" text-anchor="middle" fill="#7f8c8d" font-size="8">Serial Terminal</text>
+      <!-- BT icon -->
+      <text x="580" y="118" text-anchor="middle" fill="#9b59b6" font-size="11">📶 paired</text>
+    </g>
+
+    <!-- ════════════ Q1 — CRITICAL LOAD MOSFET ════════════ -->
+    <g id="q1" class="comp-hover">
+      <rect x="420" y="230" width="130" height="130" rx="8" fill="url(#grad-mosfet)" stroke="#8e44ad" stroke-width="1.5"/>
+      <text x="485" y="252" text-anchor="middle" fill="#9b59b6" font-size="11" font-weight="600">Q1 — IRLZ44N</text>
+      <text x="485" y="266" text-anchor="middle" fill="#6a3d8a" font-size="8">CRITICAL</text>
+      <!-- MOSFET symbol -->
+      <line x1="460" y1="295" x2="475" y2="295" stroke="#9b59b6" stroke-width="2"/>
+      <line x1="475" y1="280" x2="475" y2="310" stroke="#9b59b6" stroke-width="3"/>
+      <line x1="482" y1="280" x2="482" y2="290" stroke="#9b59b6" stroke-width="2"/>
+      <line x1="482" y1="300" x2="482" y2="310" stroke="#9b59b6" stroke-width="2"/>
+      <polygon points="482,298 488,303 482,308" fill="#9b59b6"/>
+      <!-- Labels -->
+      <text x="475" y="275" text-anchor="middle" fill="#9b59b6" font-size="8">G</text>
+      <text x="495" y="278" fill="#e74c3c" font-size="8">D</text>
+      <text x="495" y="318" fill="#2c3e50" font-size="8">S</text>
+      <!-- D/S lines -->
+      <line x1="492" y1="280" x2="510" y2="280" stroke="#e74c3c" stroke-width="1.5"/>
+      <line x1="492" y1="310" x2="510" y2="310" stroke="#2c3e50" stroke-width="1.5"/>
+      <!-- Gate R + pulldown -->
+      <rect x="430" y="330" width="40" height="14" rx="3" fill="#3a2a1a" stroke="#f39c12"/>
+      <text x="450" y="341" text-anchor="middle" fill="#f39c12" font-size="7">300Ω</text>
+      <rect x="500" y="330" width="40" height="14" rx="3" fill="#2a2a2a" stroke="#666"/>
+      <text x="520" y="341" text-anchor="middle" fill="#888" font-size="7">10kΩ</text>
+    </g>
+
+    <!-- ════════════ Q2 — NON-CRITICAL LOAD MOSFET ════════════ -->
+    <g id="q2" class="comp-hover">
+      <rect x="420" y="400" width="130" height="130" rx="8" fill="url(#grad-mosfet)" stroke="#8e44ad" stroke-width="1.5"/>
+      <text x="485" y="422" text-anchor="middle" fill="#9b59b6" font-size="11" font-weight="600">Q2 — IRLZ44N</text>
+      <text x="485" y="436" text-anchor="middle" fill="#6a3d8a" font-size="8">NON-CRITICAL</text>
+      <line x1="460" y1="465" x2="475" y2="465" stroke="#9b59b6" stroke-width="2"/>
+      <line x1="475" y1="450" x2="475" y2="480" stroke="#9b59b6" stroke-width="3"/>
+      <line x1="482" y1="450" x2="482" y2="460" stroke="#9b59b6" stroke-width="2"/>
+      <line x1="482" y1="470" x2="482" y2="480" stroke="#9b59b6" stroke-width="2"/>
+      <polygon points="482,468 488,473 482,478" fill="#9b59b6"/>
+      <text x="475" y="445" text-anchor="middle" fill="#9b59b6" font-size="8">G</text>
+      <text x="495" y="448" fill="#e74c3c" font-size="8">D</text>
+      <text x="495" y="488" fill="#2c3e50" font-size="8">S</text>
+      <line x1="492" y1="450" x2="510" y2="450" stroke="#e74c3c" stroke-width="1.5"/>
+      <line x1="492" y1="480" x2="510" y2="480" stroke="#2c3e50" stroke-width="1.5"/>
+      <rect x="430" y="500" width="40" height="14" rx="3" fill="#3a2a1a" stroke="#f39c12"/>
+      <text x="450" y="511" text-anchor="middle" fill="#f39c12" font-size="7">300Ω</text>
+      <rect x="500" y="500" width="40" height="14" rx="3" fill="#2a2a2a" stroke="#666"/>
+      <text x="520" y="511" text-anchor="middle" fill="#888" font-size="7">10kΩ</text>
+    </g>
+
+    <!-- ════════════ CRITICAL LOAD ════════════ -->
+    <g id="loadCrit">
+      <rect x="630" y="240" width="120" height="100" rx="8" fill="#1a0a0a" stroke="#e74c3c" stroke-width="1.5"/>
+      <text x="690" y="262" text-anchor="middle" fill="#e74c3c" font-size="10" font-weight="600">CRITICAL LOAD</text>
+      <text x="690" y="276" text-anchor="middle" fill="#aa3333" font-size="8">Hospital / Emergency</text>
+      <!-- Lamp icon -->
+      <circle id="loadCritGlow" cx="690" cy="305" r="18" fill="#ff6b35" opacity="0.6" filter="url(#glow-red)"/>
+      <circle cx="690" cy="305" r="12" fill="#ffaa00" opacity="0.8"/>
+      <line x1="690" y1="287" x2="690" y2="293" stroke="#fff" stroke-width="1.5"/>
+      <line x1="690" y1="317" x2="690" y2="323" stroke="#fff" stroke-width="1.5"/>
+      <text x="690" y="338" text-anchor="middle" fill="#e74c3c" font-size="8">NOT shed</text>
+    </g>
+
+    <!-- ════════════ NON-CRITICAL LOAD ════════════ -->
+    <g id="loadNCrit">
+      <rect x="630" y="410" width="120" height="100" rx="8" fill="#0a0a1a" stroke="#3498db" stroke-width="1.5"/>
+      <text x="690" y="432" text-anchor="middle" fill="#3498db" font-size="10" font-weight="600">NON-CRITICAL</text>
+      <text x="690" y="446" text-anchor="middle" fill="#2980b9" font-size="8">Houses / Offices</text>
+      <!-- House icon -->
+      <polygon points="690,458 670,475 710,475" fill="none" stroke="#3498db" stroke-width="1.5"/>
+      <rect x="675" y="475" width="30" height="25" fill="none" stroke="#3498db" stroke-width="1.5"/>
+      <rect x="686" y="488" width="8" height="12" fill="none" stroke="#3498db" stroke-width="1"/>
+      <circle id="loadNCritGlow" cx="690" cy="490" r="12" fill="#3498db" opacity="0"/>
+      <text x="690" y="520" text-anchor="middle" fill="#3498db" font-size="8">SHED on fail</text>
+    </g>
+
+    <!-- ════════════ PHYSICAL SWITCHES ════════════ -->
+    <g id="sw1" class="comp-hover" onclick="toggleSwitch(0)">
+      <rect x="230" y="280" width="90" height="50" rx="6" fill="#1a1a1a" stroke="#f39c12" stroke-width="1.5"/>
+      <text x="275" y="300" text-anchor="middle" fill="#f39c12" font-size="9" font-weight="600">SWITCH 0</text>
+      <text x="275" y="313" text-anchor="middle" fill="#aa7700" font-size="7">Critical Override</text>
+      <circle id="sw1Dot" cx="265" cy="325" r="4" fill="#333"/>
+      <circle id="sw1Dot2" cx="285" cy="325" r="4" fill="#333"/>
+      <line id="sw1Arm" x1="265" y1="325" x2="275" y2="315" stroke="#f39c12" stroke-width="2"/>
+    </g>
+
+    <g id="sw2" class="comp-hover" onclick="toggleSwitch(1)">
+      <rect x="230" y="370" width="90" height="50" rx="6" fill="#1a1a1a" stroke="#f39c12" stroke-width="1.5"/>
+      <text x="275" y="390" text-anchor="middle" fill="#f39c12" font-size="9" font-weight="600">SWITCH 1</text>
+      <text x="275" y="403" text-anchor="middle" fill="#aa7700" font-size="7">Non-Crit Override</text>
+      <circle id="sw2Dot" cx="265" cy="415" r="4" fill="#333"/>
+      <circle id="sw2Dot2" cx="285" cy="415" r="4" fill="#333"/>
+      <line id="sw2Arm" x1="265" y1="415" x2="275" y2="405" stroke="#f39c12" stroke-width="2"/>
+    </g>
+
+    <!-- ════════════ WIRES ════════════ -->
+    <!-- HC-05 TXD → Arduino pin 0 (RX) -->
+    <line id="w-bt-tx" class="wire-active" x1="307" y1="183" x2="200" y2="183" stroke="#9b59b6" stroke-width="2"/>
+    <!-- Arduino pin 1 (TX) → HC-05 RXD via divider -->
+    <line id="w-bt-rx1" x1="43" y1="207" x2="200" y2="207" stroke="#9b59b6" stroke-width="2"/>
+    <line id="w-bt-rx2" x1="200" y1="207" x2="307" y2="195" stroke="#9b59b6" stroke-width="2"/>
+
+    <!-- Pin 5 → Q1 gate (via 300Ω) -->
+    <line id="w-gate1" x1="43" y1="287" x2="200" y2="287" stroke="#3498db" stroke-width="2"/>
+    <line id="w-gate1b" x1="200" y1="287" x2="200" y2="337" stroke="#3498db" stroke-width="2"/>
+    <line id="w-gate1c" x1="200" y1="337" x2="430" y2="337" stroke="#3498db" stroke-width="2"/>
+    <line id="w-gate1d" x1="430" y1="337" x2="430" y2="344" stroke="#3498db" stroke-width="2"/>
+
+    <!-- Pin 6 → Q2 gate (via 300Ω) -->
+    <line id="w-gate2" x1="43" y1="307" x2="190" y2="307" stroke="#3498db" stroke-width="2"/>
+    <line id="w-gate2b" x1="190" y1="307" x2="190" y2="507" stroke="#3498db" stroke-width="2"/>
+    <line id="w-gate2c" x1="190" y1="507" x2="430" y2="507" stroke="#3498db" stroke-width="2"/>
+    <line id="w-gate2d" x1="430" y1="507" x2="430" y2="514" stroke="#3498db" stroke-width="2"/>
+
+    <!-- Pin 7 → SW1 -->
+    <line id="w-sw1" x1="43" y1="327" x2="230" y2="327" stroke="#f39c12" stroke-width="1.5"/>
+    <!-- Pin 8 → SW2 -->
+    <line id="w-sw2" x1="43" y1="347" x2="230" y2="347" stroke="#f39c12" stroke-width="1.5"/>
+    <line x1="230" y1="347" x2="230" y2="395" stroke="#f39c12" stroke-width="1.5"/>
+
+    <!-- Q1 drain → critical load (-) -->
+    <line id="w-drain1" x1="510" y1="280" x2="630" y2="280" stroke="#e74c3c" stroke-width="2.5"/>
+    <!-- Q2 drain → non-critical load (-) -->
+    <line id="w-drain2" x1="510" y1="450" x2="630" y2="450" stroke="#e74c3c" stroke-width="2.5"/>
+
+    <!-- +12V → loads -->
+    <line x1="750" y1="240" x2="750" y2="70" stroke="#e74c3c" stroke-width="2"/>
+    <line x1="750" y1="70" x2="870" y2="70" stroke="#e74c3c" stroke-width="2"/>
+    <line x1="750" y1="410" x2="750" y2="110" stroke="#e74c3c" stroke-width="2"/>
+    <line x1="750" y1="110" x2="870" y2="110" stroke="#e74c3c" stroke-width="2"/>
+
+    <!-- Sources → GND -->
+    <line id="w-src1" x1="510" y1="310" x2="580" y2="310" stroke="#2c3e50" stroke-width="2"/>
+    <line id="w-src2" x1="510" y1="480" x2="580" y2="480" stroke="#2c3e50" stroke-width="2"/>
+    <line x1="580" y1="310" x2="580" y2="480" stroke="#2c3e50" stroke-width="2"/>
+    <line x1="580" y1="395" x2="840" y2="395" stroke="#2c3e50" stroke-width="2.5"/>
+
+    <!-- Arduino GND → GND bus -->
+    <line x1="168" y1="217" x2="168" y2="430" stroke="#2c3e50" stroke-width="2"/>
+    <line x1="168" y1="430" x2="840" y2="430" stroke="#2c3e50" stroke-width="2"/>
+
+    <!-- Arduino 5V → HC-05 VCC -->
+    <line x1="168" y1="197" x2="200" y2="197" stroke="#e74c3c" stroke-width="1.5"/>
+    <line x1="200" y1="197" x2="200" y2="183" stroke="#e74c3c" stroke-width="1.5"/>
+    <line x1="200" y1="183" x2="252" y2="183" stroke="#e74c3c" stroke-width="1.5"/>
+
+    <!-- SWs → GND -->
+    <line x1="275" y1="330" x2="275" y2="337" stroke="#2c3e50" stroke-width="1.5"/>
+    <line x1="275" y1="337" x2="275" y2="420" stroke="#2c3e50" stroke-width="1.5"/>
+    <line x1="275" y1="420" x2="580" y2="420" stroke="#2c3e50" stroke-width="1.5"/>
+
+    <!-- ════════════ WIRES (animated overlays) ════════════ -->
+    <!-- Current flow lines (shown/hidden based on state) -->
+    <line id="cf-crit" class="wire-active" x1="870" y1="70" x2="630" y2="280" stroke="#ff6b35" stroke-width="3" opacity="0" filter="url(#glow-red)"/>
+    <line id="cf-crit2" class="wire-active" x1="630" y1="280" x2="510" y2="310" stroke="#ff6b35" stroke-width="3" opacity="0" filter="url(#glow-red)"/>
+    <line id="cf-ncrit" class="wire-active" x1="870" y1="110" x2="630" y2="450" stroke="#3498db" stroke-width="3" opacity="0" filter="url(#glow-blue)"/>
+    <line id="cf-ncrit2" class="wire-active" x1="630" y1="450" x2="510" y2="480" stroke="#3498db" stroke-width="3" opacity="0" filter="url(#glow-blue)"/>
+
+    <!-- Gate drive glow -->
+    <line id="gate-glow1" x1="43" y1="287" x2="460" y2="295" stroke="#3498db" stroke-width="3" opacity="0" filter="url(#glow-blue)"/>
+    <line id="gate-glow2" x1="43" y1="307" x2="460" y2="465" stroke="#3498db" stroke-width="3" opacity="0" filter="url(#glow-blue)"/>
+
+    <!-- ════════════ SENSORS ════════════ -->
+    <g id="sensors">
+      <rect x="20" y="450" width="140" height="70" rx="6" fill="#0a1a0a" stroke="#1abc9c" stroke-width="1"/>
+      <text x="90" y="470" text-anchor="middle" fill="#1abc9c" font-size="9" font-weight="600">SENSORS</text>
+      <text x="90" y="485" text-anchor="middle" fill="#16a085" font-size="8">A0: Voltage (40k/10k)</text>
+      <text x="90" y="500" text-anchor="middle" fill="#16a085" font-size="8">A1: Current (ACS712)</text>
+      <text x="90" y="515" text-anchor="middle" fill="#1abc9c" font-size="9" font-weight="600" id="sensorReadout">V: 12.50V  I: 0.00A</text>
+    </g>
+
+    <!-- ════════════ BT WAVE ANIMATION ════════════ -->
+    <g id="btWaves" opacity="0">
+      <path d="M340,120 Q360,90 380,120 Q400,150 420,120 Q440,90 460,120 Q480,150 500,120" fill="none" stroke="#9b59b6" stroke-width="2" stroke-dasharray="4 3">
+        <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="0.5s" repeatCount="indefinite"/>
+      </path>
+      <path d="M340,130 Q360,100 380,130 Q400,160 420,130 Q440,100 460,130 Q480,160 500,130" fill="none" stroke="#9b59b6" stroke-width="1.5" opacity="0.5" stroke-dasharray="4 3">
+        <animate attributeName="stroke-dashoffset" from="0" to="-14" dur="0.7s" repeatCount="indefinite"/>
+      </path>
+    </g>
+
+    <!-- Tooltip -->
+    <rect id="tooltipBg" x="0" y="0" width="160" height="40" rx="4" fill="#1a1a2e" stroke="#444" opacity="0"/>
+    <text id="tooltipText" x="0" y="0" fill="#ccc" font-size="9" opacity="0"></text>
+
+  </svg>
+  <div class="tooltip" id="tooltip"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ CONTROL PANEL ═══════════════════════════════════════════════════ -->
+<div class="panel" style="min-width:280px;flex:0 0 280px;">
+  <h2>🎮 Controls</h2>
+
+  <button class="ctrl-btn on" id="btnCrit" onclick="sendCmd('C')">
+    <span class="status-dot dot-green" id="dotCrit"></span>
+    Critical Load: ON
+  </button>
+  <button class="ctrl-btn on" id="btnNCrit" onclick="sendCmd('N')">
+    <span class="status-dot dot-green" id="dotNCrit"></span>
+    Non-Critical Load: ON
+  </button>
+
+  <div style="height:8px"></div>
+
+  <button class="ctrl-btn warn" id="btnEmergency" onclick="sendCmd('E')">
+    <span class="status-dot dot-yellow"></span>
+    ⚠ Emergency Cutoff
+  </button>
+
+  <button class="ctrl-btn" id="btnAuto" onclick="sendCmd('AUTO')">
+    Auto Grid Fail: <strong id="autoState">ON</strong>
+  </button>
+
+  <div style="height:8px"></div>
+  <h2>📡 Connection</h2>
+
+  <div class="status-row">
+    <span><span class="status-dot" id="btDot"></span>HC-05 Bluetooth</span>
+    <span id="btStatus" style="color:#888">Disconnected</span>
+  </div>
+  <div class="status-row">
+    <span><span class="status-dot dot-blue"></span>Arduino Uno</span>
+    <span style="color:#2ecc71">COM9</span>
+  </div>
+  <div class="status-row">
+    <span><span class="status-dot" id="gridDot"></span>Grid Status</span>
+    <span id="gridStatus" style="color:#2ecc71">OK</span>
+  </div>
+
+  <div style="height:8px"></div>
+  <h2>📊 Telemetry</h2>
+  <div class="status-row"><span>Bus Voltage</span><span id="telV">12.50 V</span></div>
+  <div class="status-row"><span>Load Current</span><span id="telI">0.00 A</span></div>
+  <div class="status-row"><span>Critical Load</span><span id="telCrit" style="color:#2ecc71">ON</span></div>
+  <div class="status-row"><span>Non-Critical</span><span id="telNCrit" style="color:#2ecc71">ON</span></div>
+  <div class="status-row"><span>Auto Mode</span><span id="telAuto" style="color:#2ecc71">ON</span></div>
+  <div class="status-row"><span>Free RAM</span><span id="telRam">1574 B</span></div>
+
+  <div style="height:8px"></div>
+  <h2>📋 Command Log</h2>
+  <div class="log" id="log"></div>
+</div>
+
+</div><!-- container -->
+
+<script>
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+const state = {
+  critOn: true,
+  nCritOn: true,
+  autoMode: true,
+  emergency: false,
+  btConnected: false,
+  gridOK: true,
+  voltage: 12.50,
+  current: 0.00,
+  sw1Manual: false,
+  sw2Manual: false
+};
+
+const logEl = document.getElementById('log');
+
+function log(msg, type) {
+  const cls = type || '';
+  logEl.innerHTML += `<div class="${cls}">[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════
+//  UPDATE VISUALS
+// ═══════════════════════════════════════════════════
+function updateVisuals() {
+  // ── Critical load ──
+  const critGlow = document.getElementById('loadCritGlow');
+  const cfCrit = document.getElementById('cf-crit');
+  const cfCrit2 = document.getElementById('cf-crit2');
+  const gateGlow1 = document.getElementById('gate-glow1');
+
+  if (state.critOn) {
+    critGlow.setAttribute('opacity', '0.7');
+    critGlow.classList.add('load-glow');
+    cfCrit.setAttribute('opacity', '0.6');
+    cfCrit2.setAttribute('opacity', '0.6');
+    gateGlow1.setAttribute('opacity', '0.4');
+  } else {
+    critGlow.setAttribute('opacity', '0.1');
+    critGlow.classList.remove('load-glow');
+    cfCrit.setAttribute('opacity', '0');
+    cfCrit2.setAttribute('opacity', '0');
+    gateGlow1.setAttribute('opacity', '0');
+  }
+
+  // ── Non-critical load ──
+  const ncritGlow = document.getElementById('loadNCritGlow');
+  const cfNcrit = document.getElementById('cf-ncrit');
+  const cfNcrit2 = document.getElementById('cf-ncrit2');
+  const gateGlow2 = document.getElementById('gate-glow2');
+
+  if (state.nCritOn) {
+    ncritGlow.setAttribute('opacity', '0.6');
+    ncritGlow.classList.add('load-glow');
+    cfNcrit.setAttribute('opacity', '0.6');
+    cfNcrit2.setAttribute('opacity', '0.6');
+    gateGlow2.setAttribute('opacity', '0.4');
+  } else {
+    ncritGlow.setAttribute('opacity', '0');
+    ncritGlow.classList.remove('load-glow');
+    cfNcrit.setAttribute('opacity', '0');
+    cfNcrit2.setAttribute('opacity', '0');
+    gateGlow2.setAttribute('opacity', '0');
+  }
+
+  // ── Onboard LED ──
+  const onboardLed = document.getElementById('onboardLed');
+  if (state.emergency) {
+    onboardLed.setAttribute('fill', '#e74c3c');
+    onboardLed.setAttribute('filter', 'url(#glow-red)');
+  } else if (!state.btConnected) {
+    onboardLed.setAttribute('fill', '#f39c12');
+    onboardLed.setAttribute('filter', '');
+  } else {
+    onboardLed.setAttribute('fill', '#2ecc71');
+    onboardLed.setAttribute('filter', 'url(#glow-green)');
+  }
+
+  // ── BT LED ──
+  const btLed = document.getElementById('btLed');
+  const btWaves = document.getElementById('btWaves');
+  const btPulses = document.querySelectorAll('.bt-pulse');
+  if (state.btConnected) {
+    btLed.setAttribute('fill', '#2ecc71');
+    btLed.setAttribute('filter', 'url(#glow-green)');
+    btWaves.setAttribute('opacity', '1');
+    btPulses.forEach(p => p.setAttribute('opacity', '0.8'));
+  } else {
+    btLed.setAttribute('fill', '#333');
+    btLed.setAttribute('filter', '');
+    btWaves.setAttribute('opacity', '0');
+    btPulses.forEach(p => p.setAttribute('opacity', '0'));
+  }
+
+  // ── Buttons ──
+  const btnCrit = document.getElementById('btnCrit');
+  const dotCrit = document.getElementById('dotCrit');
+  if (state.critOn) {
+    btnCrit.className = 'ctrl-btn on';
+    btnCrit.innerHTML = '<span class="status-dot dot-green"></span>Critical Load: ON';
+  } else {
+    btnCrit.className = 'ctrl-btn off';
+    btnCrit.innerHTML = '<span class="status-dot dot-red"></span>Critical Load: OFF';
+  }
+
+  const btnNCrit = document.getElementById('btnNCrit');
+  if (state.nCritOn) {
+    btnNCrit.className = 'ctrl-btn on';
+    btnNCrit.innerHTML = '<span class="status-dot dot-green"></span>Non-Critical Load: ON';
+  } else {
+    btnNCrit.className = 'ctrl-btn off';
+    btnNCrit.innerHTML = '<span class="status-dot dot-red"></span>Non-Critical Load: OFF';
+  }
+
+  const btnEmergency = document.getElementById('btnEmergency');
+  if (state.emergency) {
+    btnEmergency.className = 'ctrl-btn critical';
+    btnEmergency.innerHTML = '<span class="status-dot dot-red"></span>⚠ EMERGENCY ACTIVE';
+  } else {
+    btnEmergency.className = 'ctrl-btn warn';
+    btnEmergency.innerHTML = '<span class="status-dot dot-yellow"></span>⚠ Emergency Cutoff';
+  }
+
+  document.getElementById('autoState').textContent = state.autoMode ? 'ON' : 'OFF';
+  document.getElementById('btnAuto').className = state.autoMode ? 'ctrl-btn on' : 'ctrl-btn';
+
+  // ── BT status ──
+  const btDot = document.getElementById('btDot');
+  const btStatus = document.getElementById('btStatus');
+  if (state.btConnected) {
+    btDot.className = 'status-dot dot-green';
+    btStatus.textContent = 'Connected';
+    btStatus.style.color = '#2ecc71';
+  } else {
+    btDot.className = 'status-dot dot-red';
+    btStatus.textContent = 'Disconnected';
+    btStatus.style.color = '#e74c3c';
+  }
+
+  // ── Grid status ──
+  const gridDot = document.getElementById('gridDot');
+  const gridStatus = document.getElementById('gridStatus');
+  if (state.emergency || !state.gridOK) {
+    gridDot.className = 'status-dot dot-red';
+    gridStatus.textContent = 'FAIL';
+    gridStatus.style.color = '#e74c3c';
+  } else {
+    gridDot.className = 'status-dot dot-green';
+    gridStatus.textContent = 'OK';
+    gridStatus.style.color = '#2ecc71';
+  }
+
+  // ── Telemetry ──
+  document.getElementById('telV').textContent = state.voltage.toFixed(2) + ' V';
+  document.getElementById('telI').textContent = state.current.toFixed(2) + ' A';
+  document.getElementById('telCrit').textContent = state.critOn ? 'ON' : 'OFF';
+  document.getElementById('telCrit').style.color = state.critOn ? '#2ecc71' : '#e74c3c';
+  document.getElementById('telNCrit').textContent = state.nCritOn ? 'ON' : 'OFF';
+  document.getElementById('telNCrit').style.color = state.nCritOn ? '#2ecc71' : '#e74c3c';
+  document.getElementById('telAuto').textContent = state.autoMode ? 'ON' : 'OFF';
+  document.getElementById('telAuto').style.color = state.autoMode ? '#2ecc71' : '#888';
+  document.getElementById('sensorReadout').textContent =
+    `V: ${state.voltage.toFixed(2)}V  I: ${state.current.toFixed(2)}A`;
+}
+
+// ═══════════════════════════════════════════════════
+//  COMMANDS
+// ═══════════════════════════════════════════════════
+function sendCmd(type) {
+  if (type === 'C') {
+    state.critOn = !state.critOn;
+    log(state.critOn ? 'C:1 — Critical ON' : 'C:0 — Critical OFF', 'cmd');
+  } else if (type === 'N') {
+    state.nCritOn = !state.nCritOn;
+    log(state.nCritOn ? 'N:1 — Non-Critical ON' : 'N:0 — Non-Critical OFF', 'cmd');
+  } else if (type === 'E') {
+    state.emergency = !state.emergency;
+    if (state.emergency) {
+      state.nCritOn = false;
+      log('E:1 — EMERGENCY: non-critical SHED', 'evt');
+    } else {
+      state.nCritOn = true;
+      log('E:0 — Emergency cleared, loads restored', 'ok');
+    }
+  } else if (type === 'AUTO') {
+    state.autoMode = !state.autoMode;
+    log(state.autoMode ? 'AUTO — Auto grid fail ON' : 'MANUAL — Auto grid fail OFF', 'cmd');
+  }
+  updateVisuals();
+}
+
+function toggleSwitch(ch) {
+  if (ch === 0) {
+    state.sw1Manual = !state.sw1Manual;
+    state.critOn = !state.critOn;
+    const arm = document.getElementById('sw1Arm');
+    arm.setAttribute('x2', state.sw1Manual ? '285' : '275');
+    arm.setAttribute('y2', state.sw1Manual ? '325' : '315');
+    log(`SW0 toggled — Critical ${state.critOn ? 'ON' : 'OFF'} [MANUAL]`, 'evt');
+  } else {
+    state.sw2Manual = !state.sw2Manual;
+    state.nCritOn = !state.nCritOn;
+    const arm = document.getElementById('sw2Arm');
+    arm.setAttribute('x2', state.sw2Manual ? '285' : '275');
+    arm.setAttribute('y2', state.sw2Manual ? '415' : '405');
+    log(`SW1 toggled — Non-Critical ${state.nCritOn ? 'ON' : 'OFF'} [MANUAL]`, 'evt');
+  }
+  updateVisuals();
+}
+
+// ═══════════════════════════════════════════════════
+//  SIMULATED TELEMETRY
+// ═══════════════════════════════════════════════════
+function simulateTelemetry() {
+  // Small random fluctuations
+  state.voltage = 12.0 + Math.random() * 1.0;
+  state.current = (state.critOn ? 1.2 : 0) + (state.nCritOn ? 0.8 : 0) + (Math.random() - 0.5) * 0.3;
+  if (state.current < 0) state.current = 0;
+  updateVisuals();
+}
+
+// ═══════════════════════════════════════════════════
+//  GRID FAIL SIMULATION
+// ═══════════════════════════════════════════════════
+let simRunning = false;
+function simGridFail() {
+  if (simRunning) return;
+  simRunning = true;
+  log('⚡ Simulating grid fail...', 'evt');
+  state.voltage = 8.5;
+  state.gridOK = false;
+  updateVisuals();
+
+  setTimeout(() => {
+    if (state.autoMode) {
+      state.emergency = true;
+      state.nCritOn = false;
+      log('🔴 GRID FAIL — Non-critical loads SHED', 'evt');
+      updateVisuals();
+    }
+  }, 1000);
+
+  setTimeout(() => {
+    log('⚡ Grid restored...', 'ok');
+    state.voltage = 12.5;
+    state.gridOK = true;
+    updateVisuals();
+  }, 5000);
+
+  setTimeout(() => {
+    if (state.autoMode) {
+      state.emergency = false;
+      state.nCritOn = true;
+      log('🟢 GRID RESTORED — All loads ON', 'ok');
+      updateVisuals();
+    }
+    simRunning = false;
+  }, 6000);
+}
+
+// ═══════════════════════════════════════════════════
+//  BT CONNECTION SIMULATION
+// ═══════════════════════════════════════════════════
+function simBTConnect() {
+  state.btConnected = !state.btConnected;
+  if (state.btConnected) {
+    log('📶 HC-05 paired — Bluetooth connected', 'ok');
+  } else {
+    log('📶 HC-05 disconnected', 'evt');
+  }
+  updateVisuals();
+}
+
+// ═══════════════════════════════════════════════════
+//  TOOLTIPS
+// ═══════════════════════════════════════════════════
+document.querySelectorAll('.comp-hover').forEach(el => {
+  el.addEventListener('mouseenter', (e) => {
+    const tooltip = document.getElementById('tooltip');
+    const id = el.id;
+    const tips = {
+      arduino: 'Arduino Uno — ATmega328P\n5V logic · 10-bit ADC\nPins 0/1: HC-05 Serial\nPin 5/6: Gate drive\nPin 7/8: Manual switches',
+      hc05: 'HC-05 Bluetooth Module\n9600 baud serial\nTX→pin0, RX←pin1 (via divider)\nPair PIN: 1234',
+      q1: 'IRLZ44N — Logic-level N-MOSFET\nVgs(th): 1-2V · Rds(on): 22mΩ\nGate: 300Ω from pin 5\n10kΩ pulldown to GND',
+      q2: 'IRLZ44N — Logic-level N-MOSFET\nVgs(th): 1-2V · Rds(on): 22mΩ\nGate: 300Ω from pin 6\n10kΩ pulldown to GND',
+      sw1: 'Physical toggle switch\nClick to toggle critical load\nManual override mode\nGPIO 7 → GND (INPUT_PULLUP)',
+      sw2: 'Physical toggle switch\nClick to toggle non-critical load\nManual override mode\nGPIO 8 → GND (INPUT_PULLUP)'
+    };
+    tooltip.textContent = tips[id] || '';
+    tooltip.classList.add('show');
+    const rect = el.getBoundingClientRect();
+    const svgRect = document.querySelector('.svg-wrap').getBoundingClientRect();
+    tooltip.style.left = (rect.left - svgRect.left + rect.width/2) + 'px';
+    tooltip.style.top = (rect.top - svgRect.top - 50) + 'px';
+  });
+  el.addEventListener('mouseleave', () => {
+    document.getElementById('tooltip').classList.remove('show');
+  });
+});
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+log('System boot — Arduino Uno ready', 'ok');
+log('HC-05 waiting for pair...', 'evt');
+log('Loads energised sequentially', 'ok');
+updateVisuals();
+
+// Simulate telemetry updates
+setInterval(simulateTelemetry, 2000);
+
+// Keyboard shortcuts
+document.addEventListener('keydown', (e) => {
+  if (e.key === '1') sendCmd('C');
+  if (e.key === '2') sendCmd('N');
+  if (e.key === 'e' || e.key === 'E') sendCmd('E');
+  if (e.key === 'a' || e.key === 'A') sendCmd('AUTO');
+  if (e.key === 'b' || e.key === 'B') simBTConnect();
+  if (e.key === 'g' || e.key === 'G') simGridFail();
+});
+
+// Auto-connect BT after 2s
+setTimeout(() => {
+  state.btConnected = true;
+  log('📶 HC-05 auto-paired', 'ok');
+  updateVisuals();
+}, 2000);
+</script>
+
+</body>
+</html>

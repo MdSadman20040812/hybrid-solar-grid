@@ -1,0 +1,46 @@
+* NOTE: written for ngspice (ngspice -b file.cir). If using LTspice instead,
+* delete the ".control" / "run" / "plot ..." / ".endc" lines -- LTspice runs
+* .tran automatically and you view traces from its waveform viewer.
+*
+* ===================================================================
+* SOURCE-SELECT HYSTERESIS COMPARATOR  (LM339-equivalent, behavioral)
+* ===================================================================
+* Purpose: validates the Schmitt-trigger threshold math for switching
+* between Solar/Battery and Auxiliary DC supply.
+*
+* This is a BEHAVIORAL model (steep sigmoid standing in for the LM339's
+* open-loop gain) so it runs with zero vendor library files. For the
+* final report, replace Bcomp with the real LM339 SPICE subcircuit
+* (freely downloadable from TI) for higher-fidelity numbers, then
+* re-run this same test and compare the two results in your report.
+*
+* Resistor values below are STARTING POINTS, not final numbers.
+* Rref/Rfb are meant to be trimmer pots on the physical board -- tune
+* them on the bench to hit your measured UTP/LTP, then measure the
+* pot settings and back-calculate the "as-built" resistance for your
+* theoretical-vs-simulated-vs-measured comparison table.
+* ===================================================================
+
+* Battery voltage stimulus: ramps 13V -> 9V -> 13V to sweep both trip points
+Vbatt vbatt 0 PWL(0 13 3 9 6 9 9 13 12 13)
+
+* Sensing divider: 100k / 10k -> "sense" node tracks Vbatt/11
+R1 vbatt sense 100k
+R2 sense 0 10k
+
+* Reference + positive-feedback network -> node "ref"
+* Vref represents a trimmer-divided TL431 2.5V reference
+Vref vref0 0 DC 1.0
+Rref vref0 ref 100k
+Rfb vout ref 15k
+
+* Behavioral comparator: steep sigmoid approximates LM339 open-loop gain,
+* rail-to-rail 0-5V output
+Bcomp vout 0 V=5/(1+exp(-800*(V(sense)-V(ref))))
+
+.tran 0 12 0 1m
+.control
+run
+plot V(vbatt) V(sense) V(ref) V(vout)
+.endc
+.end
